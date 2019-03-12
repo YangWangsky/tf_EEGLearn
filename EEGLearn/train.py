@@ -36,17 +36,18 @@ input_shape = [32, 32, 3]   # 1024
 nb_class = 4
 n_colors = 3
 
-# whether train cnn first, and load its weight for multi-frame model
-reuse_cnn_flag = True
+# whether to train cnn first, and load its weight for multi-frame model
+reuse_cnn_flag = False
 
 # learning_rate for different models
 lrs = {
     'cnn': 1e-3,
-    '1dconv': 5e-5,
-    'lstm': 5e-5,
-    'mix': 5e-5
+    '1dconv': 1e-4,
+    'lstm': 1e-4,
+    'mix': 1e-4,
 }
 
+weight_decay = 1e-4
 learning_rate = lrs[model_type] / 32 * batch_size
 optimizer = tf.train.AdamOptimizer
 
@@ -65,7 +66,7 @@ def train(images, labels, fold, model_type, batch_size, num_epochs, subj_id=0, r
     :param batch_size: batch size for training
     :param num_epochs: number of epochs of dataset to go over for training
     :param subj_id: the id of fold for storing log and the best model
-    :param reuse_cnn: whether train cnn first, and load its weight for multi-frame model
+    :param reuse_cnn: whether to train cnn first, and load its weight for multi-frame model
     :return: none
     """
 
@@ -114,9 +115,10 @@ def train(images, labels, fold, model_type, batch_size, num_epochs, subj_id=0, r
     prediction = network
 
     with tf.name_scope('Loss'):
-        _loss = tf.losses.sparse_softmax_cross_entropy(labels=target_var, logits=prediction)
+        l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in Train_vars if 'kernel' in v.name])
+        ce_loss = tf.losses.sparse_softmax_cross_entropy(labels=target_var, logits=prediction)
+        _loss = ce_loss + weight_decay*l2_loss
 
-    
     # decay_steps learning rate decay
     decay_steps = 3*(len(y_train)//batch_size)   # len(X_train)//batch_size  the training steps for an epcoh
     with tf.name_scope('Optimizer'):
@@ -218,10 +220,6 @@ def train(images, labels, fold, model_type, batch_size, num_epochs, subj_id=0, r
             
             print("Epoch {} of {} took {:.3f}s".format(
                 epoch + 1, num_epochs, time.time() - start_time))
-            # print("  training loss:\t\t{:.6f}".format(av_train_err))
-            # print("  training accuracy:\t\t{:.2f} %".format(av_train_acc * 100))
-            # print("  validation loss:\t\t\t{:.6f}".format(av_val_err))
-            # print("  validation accuracy:\t\t\t{:.2f} %".format(av_val_acc * 100))
             
             fmt_str = "Train \tEpoch [{:d}/{:d}]  train_Loss: {:.4f}\ttrain_Acc: {:.2f}"
             print_str = fmt_str.format(epoch + 1, num_epochs, av_train_err, av_train_acc*100)
@@ -235,10 +233,6 @@ def train(images, labels, fold, model_type, batch_size, num_epochs, subj_id=0, r
             summary, pred, av_test_err, av_test_acc = sess.run([test_summary_op, prediction, _loss, accuracy],
                 {input_var: X_test, target_var: y_test, tf_is_training: False})
             test_summary_writer.add_summary(summary, sess.run(global_steps))
-
-            # print("Final results:")
-            # print("  test loss:\t\t\t\t\t{:.6f}".format(av_test_err))
-            # print("  test accuracy:\t\t\t\t{:.2f} %".format(av_test_acc * 100))
             
             fmt_str = "Test \tEpoch [{:d}/{:d}]  test_Loss: {:.4f}\ttest_Acc: {:.2f}"
             print_str = fmt_str.format(epoch + 1, num_epochs, av_test_err, av_test_acc*100)
@@ -252,7 +246,7 @@ def train(images, labels, fold, model_type, batch_size, num_epochs, subj_id=0, r
                 saver.save(sess, checkpoint_prefix, global_step=sess.run(global_steps))
             else:
                 stop_count += 1
-                if stop_count >= 20: # stop training if val_acc dose not imporve for over 20 epochs
+                if stop_count >= 10: # stop training if val_acc dose not imporve for over 10 epochs
                     break
 
         train_batches = train_acc = 0
@@ -317,7 +311,7 @@ def train_all_model(num_epochs=3000):
             print('Done!')
 
         else:
-            # whether train cnn first, and load its weight for multi-frame model
+            # whether to train cnn first, and load its weight for multi-frame model
             if reuse_cnn_flag is True:
                 print('The subjects', subj_id, '\t\t Training the ' + 'cnn' + ' Model...')
                 acc_temp = train(images_average, labels, fold_pairs[subj_id], 'cnn', 
@@ -358,5 +352,4 @@ if __name__ == '__main__':
     np.random.seed(2018)
     tf.set_random_seed(2018)
 
-    num_epochs = 60
     train_all_model(num_epochs=num_epochs)
