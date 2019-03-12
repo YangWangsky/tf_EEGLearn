@@ -12,9 +12,12 @@ It's a tensorflow implementation for EEGLearn
 
 For more information please see https://github.com/pbashivan/EEGLearn
 
-![avatar](./image/diagram.png)
+<center>
 
-![avatar](./image/AEP.png)
+![Diagram](./images/diagram.png 'Diagram.png')
+
+![AEP](./images/AEP.png 'AEP.png') 
+<center>
 
 # Leave-one-subject-out Experments
 
