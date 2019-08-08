@@ -54,7 +54,7 @@ optimizer = tf.train.AdamOptimizer
 num_epochs = 60
 
 def train(images, labels, fold, model_type, batch_size, num_epochs, subj_id=0, reuse_cnn=False, 
-            dropout_rate=dropout_rate ,learning_rate_default=1e-3, Optimizer=tf.train.AdamOptimizer):
+    dropout_rate=dropout_rate ,learning_rate_default=1e-3, Optimizer=tf.train.AdamOptimizer, log_path=log_path):
     """
     A sample training function which loops over the training set and evaluates the network
     on the validation set after each epoch. Evaluates the network on the training set
@@ -305,7 +305,7 @@ def train_all_model(num_epochs=3000):
             print('The subjects', subj_id, '\t\t Training the ' + 'cnn' + ' Model...')
             acc_temp = train(images_average, labels, fold_pairs[subj_id], 'cnn', 
                                 batch_size=batch_size, num_epochs=num_epochs, subj_id=subj_id,
-                                learning_rate_default=lrs['cnn'], Optimizer=optimizer)
+                                learning_rate_default=lrs['cnn'], Optimizer=optimizer, log_path=log_path)
             acc_buf.append(acc_temp)
             tf.reset_default_graph()
             print('Done!')
@@ -316,7 +316,7 @@ def train_all_model(num_epochs=3000):
                 print('The subjects', subj_id, '\t\t Training the ' + 'cnn' + ' Model...')
                 acc_temp = train(images_average, labels, fold_pairs[subj_id], 'cnn', 
                                     batch_size=batch_size, num_epochs=num_epochs, subj_id=subj_id,
-                                    learning_rate_default=lrs['cnn'], Optimizer=optimizer)
+                                    learning_rate_default=lrs['cnn'], Optimizer=optimizer, log_path=log_path)
                 # acc_buf.append(acc_temp)
                 tf.reset_default_graph()
                 print('Done!')
@@ -324,8 +324,8 @@ def train_all_model(num_epochs=3000):
             print('The subjects', subj_id, '\t\t Training the ' + model_type + ' Model...')
             print('Load the CNN model weight for backbone...')
             acc_temp = train(images_timewin, labels, fold_pairs[subj_id], model_type, 
-                            batch_size=batch_size, num_epochs=num_epochs, subj_id=subj_id,
-                            reuse_cnn=reuse_cnn_flag, learning_rate_default=learning_rate, Optimizer=optimizer)
+                            batch_size=batch_size, num_epochs=num_epochs, subj_id=subj_id, reuse_cnn=reuse_cnn_flag, 
+                            learning_rate_default=learning_rate, Optimizer=optimizer, log_path=log_path)
                                 
             acc_buf.append(acc_temp)
             tf.reset_default_graph()
@@ -335,7 +335,7 @@ def train_all_model(num_epochs=3000):
 
     print('All folds for {} are done!'.format(model_type))
     acc_buf = (np.array(acc_buf)).T
-    acc_mean = np.mean(acc_buf[:,:-1], axis=1).reshape(-1, 1)
+    acc_mean = np.mean(acc_buf, axis=1).reshape(-1, 1)
     acc_buf = np.concatenate([acc_buf, acc_mean], axis=1)
     # the last column is the mean of current row
     print('Last_train_acc:\t', acc_buf[0], '\tmean :', np.mean(acc_buf[0][-1]))
